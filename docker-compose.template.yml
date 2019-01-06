@@ -1,0 +1,65 @@
+version: "3.6"
+
+services:
+  laernlp:
+     build:
+        context: "https://$gitusername:$gitpassword@github.com/laergithubtest/LaerNLP.git#v2018.12.21.0"
+        args:
+           - maven
+
+  mongo:
+     container_name: mongo
+     image: laerinternal.com/mongo:0.1
+     volumes:
+        - mongo-data:/data/db
+
+  query-parser:
+     container_name: query-parser
+     depends_on:
+        - laernlp
+        - mongo
+     build:
+        #context: "https://$gitusername:$gitpassword@github.com/laergithubtest/query-parser.git#v2018.12.17.7"
+        context: .
+        args:
+            - mongo_db_key
+            - gitusername
+            - gitpassword
+     volumes:
+#        - /home/laer/projects/query-parser/code:/root/query-parser
+
+        - type: volume
+          source: out-{{case}}
+          target: /out-{{case}}
+          read_only: true
+
+        - type: volume
+          source: knowledge
+          target: /knowledge
+          read_only: true
+
+     environment:
+         - LAERNLP_URI=http://laernlp:9000
+         - MONGODB_IP=mongo
+         - MONGODB_PORT=27017
+         - EMBEDDING_PATH=/knowledge
+         - QUERY_PARSER_PORT=1200
+         - WAIT_HOSTS=laernlp:9000,mongo:27017
+         - WAIT_HOSTS_TIMEOUT=180
+     ports:
+         - "1232:1200"
+#     command: sh -c "/wait"
+     command: sh -c "/wait && cd /root/query-parser && python server.py --case_path /out-{{case}}"
+
+volumes:
+  knowledge:
+    name: knowledge
+    external: true
+
+  out-{{case}}:
+    name: out-{{case}}
+    external: true
+
+  mongo-data:
+    name: mongo-data
+    external: true
